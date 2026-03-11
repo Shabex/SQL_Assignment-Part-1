@@ -594,4 +594,89 @@ HAVING SUM(s.quantity_sold) > 100
 ORDER BY total_sold DESC;
 
 
+-- =====================================================
+-- PART 2
+-- =====================================================
+-- =====================================================
+-- SUBQUERY QUESTIONS
+-- =====================================================
+
+-- 51. Which customers have spent more than the average spending of all customers?
+select c.first_name,c.last_name, s.total_amount  
+	from assignment.customers c
+	join assignment.sales s 
+		using(customer_id)
+	where s.total_amount > (select avg(s.total_amount) from assignment.sales s);
+
+-- 52. Which products are priced higher than the average price of all products?
+select p.product_name, p.price 
+	from assignment.products p
+	where p.price > (select avg(p.price) from assignment.products p);
+
+-- 53. Which customers have never made a purchase?
+select customer_id, c.first_name,c.last_name 
+	from assignment.customers c 
+	where c.customer_id not in (select s.customer_id from assignment.sales s);
+
+-- 54. Which products have never been sold?
+select product_id
+	from assignment.products p 
+	where p.product_id not in (select s.product_id from assignment.sales s);
+
+-- 55. Which customer made the single most expensive purchase?
+
+select  customer_id, first_name, last_name
+	from (select 
+				customer_id,
+				first_name,
+				last_name,
+				MAX(total_amount) 
+			from assignment.sales s
+			join assignment.customers c 		
+				using (customer_id)
+			group by customer_id, first_name, c.last_name
+			order by max desc
+			limit 1);
+	
+
+-- 56. Which products have total sales greater than the average total sales across all products?
+select product_name, s.total_amount 
+	from assignment.products p
+	join assignment.sales s 
+		using(product_id)
+	where s.total_amount > (select avg(total_amount) from assignment.sales s);
+
+-- 57. Which customers registered earlier than the average registration date?
+select 
+		first_name,
+		last_name,
+		c.registration_date 
+	from assignment.customers c 
+	where c.registration_date < (select to_timestamp(AVG(EXTRACT(EPOCH FROM registration_date::timestamp))) as average_date
+									from assignment.customers c);
+
+-- 58. Which products have a price higher than the average price within their own category?
+select p.category,product_name,price
+	from assignment.products p 
+	where p.price > (select avg(p2.price)
+						from assignment.products p2 
+						where p.category = p2.category);
+	
+
+-- 59. Which customers have spent more than the customer with ID = 10?
+select s.customer_id 
+	from assignment.sales s 
+	where total_amount > (select s2.total_amount 
+							from assignment.sales s2 
+							where s2.customer_id = 10
+						);
+
+
+-- 60. Which products have total quantity sold greater than the overall average quantity sold?
+select s.product_id,s.quantity_sold  
+	from assignment.sales s 
+	group by product_id,quantity_sold 
+	having sum(s.quantity_sold) > (select AVG(s2.quantity_sold)
+										from assignment.sales s2);
+	
 
