@@ -720,25 +720,219 @@ select product_id,
 
 -- 63. Create an intermediate result showing total sales per product category,
 --     then determine which category generates the highest revenue.
+with cte as 
+	(
+		select category, 
+				sum(total_amount)
+			from assignment.products p 
+				join assignment.sales s 
+				using(product_id)
+			group by category
+	)
+select category, sum as highest_rev
+from cte
+order by sum desc
+limit 1;
+;
 
 -- 64. Create an intermediate result that calculates the number of purchases per customer,
 --     then identify customers who purchased more than twice.
 
+with cte as 
+	(
+		select customer_id,
+				count(*)
+			from assignment.customers c 
+			group by customer_id
+	)
+select customer_id
+	from cte 
+	where count > 2;
+
+
 -- 65. Create an intermediate result that calculates the total quantity sold per product,
 --     then determine which products sold more than the average quantity sold.
 
+with cte1 as 
+		(
+			select product_id,
+					sum(s.quantity_sold) qty_sum
+				from assignment.sales s
+				group by product_id
+		),
+	cte2 as 
+		(
+			select avg(qty_sum ) as qty_avg 
+				from cte1
+		)
+	select product_id
+		from cte1
+			cross join cte2 
+		where cte1.qty_sum > cte2.qty_avg;
+
 -- 66. Create an intermediate result that calculates total spending per customer,
 --     then determine which customers spent more than the average spending.
+with cte1 as 
+	(
+		select customer_id,
+				sum(total_amount) amt_sum
+			from assignment.sales s
+			group by customer_id
+	),
+	cte2 as 
+	(
+		select avg(total_amount) amt_avg from assignment.sales s 
+	)
+	select customer_id
+	from cte1
+	cross join cte2 
+	where cte1.amt_sum > cte2.amt_avg;
+	
 
 -- 67. Create an intermediate result that calculates total revenue per product,
 --     then list the products ordered from highest revenue to lowest.
+with cte as 
+	(
+		select product_id,
+				sum(total_amount) sum_rev
+			from assignment.sales s
+			group by s.product_id
+	)
+select product_id,sum_rev
+	from cte 
+	order by cte.sum_rev desc;
 
 -- 68. Create an intermediate result showing monthly sales totals,
 --     then determine which month had the highest revenue.
+with cte as 
+	(
+		select 
+				extract(month from sale_date) as sale_month,
+				sum(total_amount) as sum_rev
+			from assignment.sales s
+			group by sale_month	
+	)
+select sale_month, sum_rev
+	from cte
+	order by sum_rev desc
+	limit 1;
 
 -- 69. Create an intermediate result that calculates the number of sales per product,
 --     then determine which products were purchased by more than three customers.
+with cte as 
+	(
+		select product_id,
+			   count(distinct customer_id) as customer_count
+			from assignment.sales s1 
+			group by s1.product_id
+	)
+select product_id
+	from cte
+	where customer_count>3;
+
 
 -- 70. Create an intermediate result showing total quantity sold per product,
 --     then identify products that sold less than the average quantity sold.
+with cte1 as 
+		(
+		select product_id,
+				sum(quantity_sold) qty_sum
+			from assignment.sales s
+			group by product_id
+		),
+		cte2 as 
+		(
+		select avg(qty_sum) as qty_avg
+			from cte1
+		)
+	select product_id
+		from cte1
+		cross join cte2 
+		where cte1.qty_sum < cte2.qty_avg;
+
+-- =====================================================
+-- WINDOW FUNCTION QUESTIONS
+-- =====================================================
+
+-- 71. Rank customers based on the total amount they have spent.
+select customer_id,
+		total_amount,
+		rank() over(order by total_amount desc) as amt_rank
+	from assignment.sales s;
+		
+
+-- 72. Rank products based on total quantity sold.
+select product_id,
+		sum(quantity_sold) as sum_qty,
+		dense_rank() over(order by sum(quantity_sold) desc) as amt_rank
+	from assignment.sales s
+	group by product_id;
+
+-- 73. Identify the 3rd highest spending customer.
+with cte as 
+		(
+		select customer_id,
+			dense_rank()over(order by sum(total_amount) desc) as client_rank
+		from assignment.sales s
+		group by customer_id
+		)
+	select customer_id
+		from cte 
+		where client_rank = 3
+
+
+-- 74. Identify the 2nd most expensive product.
+with cte as 
+		(
+		select 
+				product_id,
+				product_name,
+				dense_rank() over(order by price desc) as price_rank
+			from assignment.products p
+		)
+	select product_name
+		from cte 
+		where price_rank = 2;
+		
+
+-- 75. Show the ranking of products within each category based on price.
+select category,
+		product_name,
+		price,
+		rank() over(partition by category order by price desc) as price_rank
+	from assignment.products p;
+
+-- 76. Show the ranking of customers based on the number of purchases they made.
+select customer_id,
+		count(*),
+		rank() over(order by count(*) desc) count_rank
+	from assignment.sales s
+	group by customer_id;
+
+-- 77. Show the running total of sales amounts ordered by sale_date.
+select sale_date,
+		total_amount,
+		sum(total_amount) over(order by sale_date) as running_total
+	from assignment.sales s
+	group by s.sale_date,total_amount;
+
+-- 78. Show the previous sale amount for each sale ordered by sale_date.
+select sale_date,
+		total_amount,
+		lag(total_amount) over(order by s.sale_date) as prev_amount
+	from assignment.sales s;
+
+-- 79. Show the next sale amount for each sale ordered by sale_date.
+select sale_date,
+		total_amount,
+		lead(total_amount) over(order by s.sale_date) as next_amount
+	from assignment.sales s;
+
+-- 80. Divide customers into 4 groups based on total spending.
+select customer_id,
+		total_amount,
+		ntile(4)over(order by total_amount desc)
+	from assignment.sales s;
+		
+	
 
