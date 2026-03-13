@@ -933,6 +933,122 @@ select customer_id,
 		total_amount,
 		ntile(4)over(order by total_amount desc)
 	from assignment.sales s;
-		
+
+
+-- =====================================================
+-- ADVANCED ANALYTICAL QUESTIONS
+-- =====================================================
+
+-- 81. Which customers bought products in more than one category?
+select customer_id,
+		count(distinct category)
+	from assignment.sales
+	join assignment.products p 
+		using(product_id)
+	group by customer_id
+	having count(distinct category) > 1;
+
+
+-- 82. Which customers purchased products within 7 days of registering?
+select c.customer_id ,
+		s.sale_date - c.registration_date as days_to_purchase
+	from assignment.customers c 
+	join assignment.sales s 
+		using(customer_id)
+	where s.sale_date - c.registration_date between 0 and 7 ;
+
+
+-- 83. Which products have lower stock remaining than the average stock quantity?
+select product_name,
+		sum(p.stock_quantity)
+	from assignment.products p 
+	group by p.product_name
+	having sum(p.stock_quantity) < (select avg(stock_quantity) from assignment.products);
+
+-- 84. Which customers purchased the same product more than once?
+select 
+		customer_id,
+		count(distinct product_id) distinct_products
+	from assignment.sales s 
+	group by customer_id;
+
+-- 85. Which product categories generated the highest total revenue?
+select category,
+		sum(total_amount) sum_rev
+	from assignment.sales s 
+	join assignment.products p 
+		using(product_id)
+	group by category 
+	order by sum_rev desc
+	limit 1;
+
+-- 86. Which products are among the top 3 most sold products?
+select product_name,
+		sum(total_amount) sum_rev
+	from assignment.sales s 
+	join assignment.products p 
+		using(product_id)
+	group by product_name 
+	order by sum_rev desc
+	limit 3;
+
+-- 87. Which customers purchased the most expensive product?
+select 
+		customer_id,
+		p.price 
+	from assignment.sales s  
+	join assignment.products p 
+		using(product_id)
+	order by p.price desc
+	limit 1;
+
+-- 88. Which products were purchased by the highest number of unique customers?
+with cte as 
+		(
+		select product_id,
+			count(distinct customer_id) as unik_customer
+		from assignment.sales s
+		group by product_id
+		)
+	select *
+		from cte
+		where unik_customer = (select max(unik_customer) from cte);
+
+-- 89. Which customers made purchases above the average sale amount?
+with cte1 as 
+		(
+		select customer_id,
+				sum(total_amount) as sum_rev
+			from assignment.sales s 
+			group by customer_id 
+		),
+	cte2 as 
+		(
+		select avg(sum_rev) avg_rev from cte1
+		)
+	select cte1.customer_id,
+			cte1.sum_rev 
+		from cte1 
+		cross join cte2 
+		where cte1.sum_rev > cte2.avg_rev;
 	
+
+-- 90. Which customers purchased more products than the average quantity purchased per customer?
+		
+	with cte1 as 
+		(
+		select customer_id,
+				sum(s.quantity_sold ) as sum_qty
+			from assignment.sales s 
+			group by customer_id 
+		),
+	cte2 as 
+		(
+		select avg(sum_qty) avg_qty from cte1
+		)
+	select cte1.customer_id,
+			cte1.sum_qty 
+		from cte1 
+		cross join cte2 
+		where cte1.sum_qty > cte2.avg_qty;
 
