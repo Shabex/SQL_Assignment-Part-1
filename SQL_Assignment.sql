@@ -680,3 +680,65 @@ select s.product_id,s.quantity_sold
 										from assignment.sales s2);
 	
 
+
+-- =====================================================
+-- COMMON TABLE EXPRESSIONS (CTEs)
+-- =====================================================
+
+-- 61. Create an intermediate result that calculates the total amount spent by each customer,
+--     then determine which customers are the top 5 highest spenders.
+
+with cte as 
+	(
+		select customer_id, 
+				sum(total_amount) as sum
+			from assignment.sales s 
+			group by customer_id
+			order by sum desc	
+	)
+select customer_id,
+		sum
+	from cte 
+	limit 5;
+
+
+-- 62. Create an intermediate result that calculates total quantity sold per product,
+--     then determine which products are the top 3 most sold.
+with cte as 
+	(
+		select product_id,
+				sum(quantity_sold) as sum
+		from assignment.sales s
+		group by product_id
+	)
+select product_id,
+		sum
+	from cte 
+	order by sum desc 
+	limit 3;
+;
+
+-- 63. Create an intermediate result showing total sales per product category,
+--     then determine which category generates the highest revenue.
+
+-- 64. Create an intermediate result that calculates the number of purchases per customer,
+--     then identify customers who purchased more than twice.
+
+-- 65. Create an intermediate result that calculates the total quantity sold per product,
+--     then determine which products sold more than the average quantity sold.
+
+-- 66. Create an intermediate result that calculates total spending per customer,
+--     then determine which customers spent more than the average spending.
+
+-- 67. Create an intermediate result that calculates total revenue per product,
+--     then list the products ordered from highest revenue to lowest.
+
+-- 68. Create an intermediate result showing monthly sales totals,
+--     then determine which month had the highest revenue.
+
+-- 69. Create an intermediate result that calculates the number of sales per product,
+--     then determine which products were purchased by more than three customers.
+
+-- 70. Create an intermediate result showing total quantity sold per product,
+--     then identify products that sold less than the average quantity sold.
+
