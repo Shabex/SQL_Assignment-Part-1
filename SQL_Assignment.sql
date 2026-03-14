@@ -1051,4 +1051,230 @@ with cte1 as
 		from cte1 
 		cross join cte2 
 		where cte1.sum_qty > cte2.avg_qty;
+	
+	-- =====================================================
+-- ADVANCED WINDOW + ANALYTICAL PROBLEMS
+-- =====================================================
+
+-- 91. Which customers rank in the top 10% of spending?
+with cte1 as 
+		(
+		select 
+				customer_id,
+				sum(total_amount) sum_rev
+			from assignment.sales
+			group by customer_id
+		),
+	cte2 as
+		(
+		select 
+				customer_id,
+				sum_rev,
+				ntile(10) over(order by sum_rev desc) ranks
+			from cte1
+		),
+	cte3 as 
+		(
+		select 
+				customer_id,
+				ranks
+			from cte2
+			where ranks = 1
+		)
+	select *
+		from cte3;
+
+-- 92. Which products contribute to the top 50% of total revenue?
+with cte1 as 
+			(
+			select 
+					product_id,
+					sum(total_amount) sum_rev
+				from assignment.sales s
+				group by product_id
+			),
+		cte2 as 
+			(
+			select 
+					product_id,
+					sum_rev,
+					sum(sum_rev) over(order by sum_rev desc) rolling_sum,
+					sum(sum_rev) over() total
+				from cte1
+			)
+	select 
+			product_id,
+			sum_rev, 
+			rolling_sum,
+			total 
+		from cte2
+		where rolling_sum <= 0.5*total;
+
+				
+-- 93. Which customers made purchases in consecutive months?
+with cte as 
+			(
+			select customer_id,
+					date_trunc('month',sale_date) as months
+				from assignment.sales
+			),
+		cte2 as 
+			(
+			select
+					customer_id,
+					months,
+					lag(months) over(partition by customer_id order by months)  prev
+				from cte
+			)
+	select 
+			customer_id, months  
+		from cte2 
+		where months = prev + interval '1 month';
+		
+
+-- 94. Which products experienced the largest difference between stock quantity and total quantity sold?
+
+select 
+		product_id,
+		p.stock_quantity - sum(s.quantity_sold ) stock_differ
+	from assignment.sales s 
+	join assignment.products p 
+		using(product_id)
+	group by product_id,p.stock_quantity
+	order by stock_differ desc
+	limit 1;
+
+-- 95. Which customers have spending above the average spending of their membership tier?
+with cte1 as
+				(
+				select 
+						customer_id,
+						membership_status,
+						sum(total_amount) as sum_amt
+					from assignment.customers c 
+					join assignment.sales s 
+						using (customer_id)
+					group by customer_id, c.membership_status 
+					),
+			cte2 as
+					(
+					select 
+							membership_status ,
+							avg(sum_amt) as avg_amt
+						from cte1
+						group by membership_status 
+					)
+			select customer_id,
+					cte1.membership_status ,
+					sum_amt,
+					avg_amt 
+				from cte1
+				join cte2
+				using(membership_status)
+				where sum_amt > avg_amt
+				order by 1;
+
+with cte as 
+			(
+			select 
+					customer_id,
+					membership_status,
+					sum(total_amount) as sum_amt,
+					avg(sum(total_amount)) over(partition by membership_status) as avg_rev
+				from assignment.customers c 
+				join assignment.sales s 
+					using (customer_id)
+				group by customer_id, c.membership_status
+			)
+select customer_id
+	from cte
+	where sum_amt>avg_rev
+	order by 1;
+
+		
+
+-- 96. Which products have higher sales than the average sales within their category?
+with cte1 as 
+			(
+			select product_id,
+					category,
+					sum(total_amount) as sum_rev	
+				from assignment.sales
+					join assignment.products p 
+					using(product_id)
+					group  by category,product_id
+			),
+		cte2 as 
+			(
+			select avg(sum_rev) avg_rev,
+					category
+				from cte1
+				group by category
+			)
+	select product_id
+		from cte1
+		join cte2
+		using(category)
+		where cte1.sum_rev > cte2.avg_rev;
+
+
+with cte as 
+			(
+			select 
+					product_id,
+					category,
+					sum(total_amount) sum_rev,
+					avg(sum(total_amount)) over(partition by p.category ) as avg_rev
+				from assignment.sales
+				join assignment.products p 
+					using(product_id)
+				group  by category,product_id
+			)
+		select product_id
+			from cte 
+			where sum_rev>avg_rev;
+	
+
+-- 97. Which customer made the largest single purchase relative to their total spending?
+
+-- 98. Which products rank among the top 3 most sold products within each category?
+with cte as 
+			(
+			select 
+					p.product_id,
+					category,
+					sum(quantity_sold) sum_qty,
+					dense_rank() over(partition by category order by sum(s.quantity_sold) desc) as rnk_cat
+				from assignment.sales s
+				join assignment.products p 
+					using(product_id)
+				group by p.product_id,category
+			)
+select product_id
+	from cte
+	where rnk_cat <= 3;
+
+-- 99. Which customers are tied for the highest total spending?
+with cte as 
+			(
+			select customer_id,
+					sum(total_amount) sum_rev,
+					dense_rank() over(order by sum(total_amount) desc) rank
+				from assignment.sales s
+				group by customer_id
+			)
+select customer_id
+	from cte 
+	where rank=1;
+-- 100. Which products generated sales every year present in the dataset?
+with cte as 
+			(
+			select 
+					count(distinct(extract(year from sale_date))) as total_years
+				from assignment.sales
+			)
+select product_id
+	from assignment.sales
+	group by product_id
+	having count(distinct(extract(year from sale_date))) = (select total_years from cte);
 
